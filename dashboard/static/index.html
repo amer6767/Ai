@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Territorial.io Autonomous CV AI — Telemetry</title>
+  <style>
+    :root { --bg: #0b1018; --card: #131b26; --border: #253347; --text: #e6eef8; --muted: #8ea1b8; --accent: #38bdf8; --ok: #22c55e; --warn: #f59e0b; }
+    * { box-sizing: border-box; font-family: Inter, system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 24px; }
+    h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.02em; }
+    .badge { padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; background: rgba(34,197,94,0.15); color: var(--ok); border: 1px solid rgba(34,197,94,0.35); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .val { font-size: 1.65rem; font-weight: 700; margin-top: 6px; color: var(--accent); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 10px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    pre { background: #090d14; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; color: #cbd5e1; max-height: 320px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Territorial.io — Autonomous Computer-Vision AI</h1>
+      <div style="color:var(--muted);font-size:0.84rem;margin-top:4px;">Pure-Pixel Observation • External X11 Control • Recurrent GATv2 + PPO • Engine-Isolated</div>
+    </div>
+    <span class="badge" id="hw-badge">Connecting...</span>
+  </header>
+
+  <div class="grid">
+    <div class="card"><div class="label">Curriculum Stage</div><div class="val" id="m-stage">-</div></div>
+    <div class="card"><div class="label">Total RL Steps</div><div class="val" id="m-steps">-</div></div>
+    <div class="card"><div class="label">Champion Win Rate</div><div class="val" id="m-wr">-</div></div>
+    <div class="card"><div class="label">Mean Peak Land</div><div class="val" id="m-land">-</div></div>
+    <div class="card"><div class="label">Decision Accuracy</div><div class="val" id="m-acc">-</div></div>
+    <div class="card"><div class="label">Self-Play Elo</div><div class="val" id="m-elo">-</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="label">Model Checkpoints & Champion Registry</div>
+      <table>
+        <thead><tr><th>ID</th><th>Stage</th><th>Steps</th><th>Elo</th><th>Win %</th><th>Champ</th></tr></thead>
+        <tbody id="tbl-ckpts"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="label">Recent Autonomous Episodes</div>
+      <table>
+        <thead><tr><th>Mode</th><th>Stage</th><th>Won</th><th>Peak Land</th><th>Acc</th><th>Steps</th></tr></thead>
+        <tbody id="tbl-eps"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:16px;">
+    <div class="card">
+      <div class="label">Detected Mistakes (Hard-Scenario Learning)</div>
+      <table>
+        <thead><tr><th>Type</th><th>Severity</th><th>Action</th><th>Step</th></tr></thead>
+        <tbody id="tbl-mistakes"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="label">9-Stage Training Logbook JSON</div>
+      <pre id="raw-json">Loading...</pre>
+    </div>
+  </div>
+
+  <script>
+    async function refresh() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        document.getElementById('hw-badge').textContent = `${data.hardware.name} (${data.hardware.device})`;
+        document.getElementById('m-stage').textContent = `${data.curriculum.current_stage} / 9`;
+        document.getElementById('m-steps').textContent = data.curriculum.global_steps.toLocaleString();
+        const fb = data.training_summary?.final_benchmark || {};
+        const s9 = data.training_summary?.stage_9_self_play || {};
+        document.getElementById('m-wr').textContent = fb.win_rate != null ? `${(fb.win_rate * 100).toFixed(1)}%` : 'N/A';
+        document.getElementById('m-land').textContent = fb.mean_peak_land != null ? `${(fb.mean_peak_land * 100).toFixed(1)}%` : 'N/A';
+        document.getElementById('m-acc').textContent = fb.mean_decision_accuracy != null ? `${(fb.mean_decision_accuracy * 100).toFixed(1)}%` : 'N/A';
+        document.getElementById('m-elo').textContent = s9.elo_final != null ? s9.elo_final.toFixed(1) : '1000.0';
+
+        document.getElementById('tbl-ckpts').innerHTML = (data.checkpoints || []).map(c =>
+          `<tr><td>${c.checkpoint_id.slice(0,22)}</td><td>S${c.curriculum_stage}</td><td>${c.global_steps}</td><td>${Number(c.elo_rating).toFixed(0)}</td><td>${c.eval_win_rate != null ? (c.eval_win_rate*100).toFixed(0)+'%' : '-'}</td><td>${c.is_champion ? '★' : ''}</td></tr>`
+        ).join('') || '<tr><td colspan="6">No checkpoints yet</td></tr>';
+
+        document.getElementById('tbl-eps').innerHTML = (data.recent_episodes || []).map(e =>
+          `<tr><td>${e.env_mode}</td><td>S${e.curriculum_stage}</td><td>${e.won ? 'WIN' : 'LOSS'}</td><td>${(e.peak_land_ratio*100).toFixed(1)}%</td><td>${(e.decision_accuracy*100).toFixed(0)}%</td><td>${e.total_steps}</td></tr>`
+        ).join('') || '<tr><td colspan="6">No episodes logged yet</td></tr>';
+
+        document.getElementById('tbl-mistakes').innerHTML = (data.recent_mistakes || []).map(m =>
+          `<tr><td>${m.mistake_type}</td><td>${Number(m.severity).toFixed(2)}</td><td>${m.action_type}</td><td>${m.step_idx}</td></tr>`
+        ).join('') || '<tr><td colspan="4">No mistakes logged</td></tr>';
+
+        document.getElementById('raw-json').textContent = JSON.stringify(data.training_summary || {}, null, 2);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

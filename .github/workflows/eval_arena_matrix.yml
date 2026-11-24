@@ -1,0 +1,35 @@
+name: Parallel Multi-Tier Evaluation Arena
+
+on:
+  workflow_dispatch:
+    inputs:
+      matches_per_tier:
+        description: "Matches per difficulty tier"
+        required: false
+        default: "3"
+
+jobs:
+  arena-eval-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        difficulty: ["Very Easy", "Easy", "Normal", "Hard", "Very Hard", "Impossible"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Dependencies
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install numpy scipy opencv-python-headless mss python-xlib pydantic pyarrow zstandard fastapi uvicorn pytest onnx onnxruntime gymnasium
+      - name: Evaluate Tier (${{ matrix.difficulty }})
+        run: |
+          mkdir -p eval_artifacts
+          PYTHONPATH=. python3 cli.py eval --mode arena --difficulties "${{ matrix.difficulty }}" --matches "${{ github.event.inputs.matches_per_tier || '3' }}" > "eval_artifacts/${{ matrix.difficulty }}.json"
+          cat "eval_artifacts/${{ matrix.difficulty }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.difficulty }}
+          path: eval_artifacts/

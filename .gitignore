@@ -1,0 +1,39 @@
+# Python / Build
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Secrets & Credentials (NEVER commit API keys or tokens)
+.env
+.env.*
+kaggle.json
+.kaggle/
+.secrets/
+*.pem
+*.key
+
+# Large Runtime / Training Artifacts & Temporary Captures
+runs/
+captures/
+*.mp4
+*.avi
+memory/episodes/*.parquet
+memory/episodes/*.zst
+memory/ai_memory.db
+memory/ai_memory.db-journal
+memory/ai_memory.db-wal
+models/checkpoints/*.pt
+models/checkpoints/*.onnx
+models/checkpoints/*.tmp
+!models/checkpoints/.gitkeep
+!memory/episodes/.gitkeep
+logs/
+*.log
