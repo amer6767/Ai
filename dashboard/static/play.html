@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Play vs Territorial.io Autonomous CV AI</title>
+  <style>
+    :root { --bg:#08121c; --panel:rgba(9,16,26,0.88); --border:#cbd5e1; --accent:#38bdf8; --human:#2d88f5; --ai:#e83644; --green:#22c55e; --red:#ff7864; }
+    * { box-sizing:border-box; user-select:none; font-family:Inter,system-ui,-apple-system,sans-serif; }
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--bg); color:#f8fafc; }
+    #wrap { position:relative; width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at center, #144d70 0%, #0b2c44 100%); }
+    canvas#arena { width:100%; height:100%; object-fit:contain; cursor:crosshair; image-rendering:pixelated; }
+
+    /* Top-Center Balance Box (authentic Territorial.io style) */
+    #balance-box {
+      position:fixed; top:12px; left:50%; transform:translateX(-50%);
+      min-width:210px; height:40px; border:1.5px solid #fff;
+      background:rgba(0,105,0,0.84); display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:1.25rem; letter-spacing:0.02em; overflow:hidden; z-index:10;
+    }
+    #balance-box.losing { background:rgba(155,15,15,0.86); }
+    #balance-box.red-int #bal-num { color:#ffa0a0; }
+    .cyc-bar { position:absolute; bottom:0; width:6px; background:rgba(255,255,255,0.85); transition:height 0.12s linear; }
+    #cyc-l { left:0; } #cyc-r { right:0; }
+
+    /* Top-Left Leaderboard */
+    #leaderboard {
+      position:fixed; top:12px; left:12px; width:235px; border:1.5px solid #fff;
+      background:var(--panel); z-index:10; font-size:0.82rem;
+    }
+    #lb-title { background:#0f3761; text-align:center; font-weight:800; padding:6px; letter-spacing:0.06em; border-bottom:1px solid #fff; }
+    .lb-row { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .lb-row.me { background:rgba(45,136,245,0.28); font-weight:700; }
+    .lb-row.ai { background:rgba(232,54,68,0.25); font-weight:700; }
+    .swatch { display:inline-block; width:10px; height:10px; border:1px solid #fff; margin-right:6px; vertical-align:middle; }
+
+    /* Top-Right Stats Panel */
+    #stats-panel {
+      position:fixed; top:12px; right:12px; width:175px; border:1.5px solid #fff;
+      background:var(--panel); padding:7px 10px; z-index:10; font-size:0.82rem;
+    }
+    .st-row { display:flex; justify-content:space-between; margin:2px 0; font-weight:600; }
+    .red-txt { color:var(--red); }
+
+    /* AI Brain Live Inspector */
+    #ai-panel {
+      position:fixed; top:142px; right:12px; width:245px; border:1px solid rgba(232,54,68,0.65);
+      background:rgba(12,16,24,0.9); border-radius:8px; padding:10px; z-index:10; font-size:0.78rem;
+    }
+    #ai-panel h3 { margin:0 0 6px 0; font-size:0.82rem; color:#fb7185; display:flex; justify-content:space-between; }
+    .ai-kv { display:flex; justify-content:space-between; margin:3px 0; color:#cbd5e1; }
+    .ai-kv b { color:#f8fafc; }
+    #ai-rat { margin-top:6px; padding:5px 7px; border-radius:5px; background:rgba(255,255,255,0.06); color:#7dd3fc; font-family:monospace; font-size:0.73rem; word-break:break-word; }
+
+    /* Left Controls Bar */
+    #ctrl-panel {
+      position:fixed; bottom:66px; left:12px; width:235px; border:1px solid rgba(255,255,255,0.28);
+      background:var(--panel); border-radius:8px; padding:10px; z-index:10; font-size:0.78rem;
+    }
+    .ctl-row { display:flex; gap:6px; margin-bottom:6px; }
+    select, button {
+      background:#162436; color:#f8fafc; border:1px solid rgba(255,255,255,0.32);
+      border-radius:5px; padding:5px 8px; font-size:0.78rem; font-weight:600; cursor:pointer;
+    }
+    button:hover { background:#1e3450; }
+    button.active { background:#0284c7; border-color:#7dd3fc; }
+    button.primary { background:#15803d; border-color:#86efac; flex:1; }
+    button.primary:hover { background:#16a34a; }
+
+    /* Bottom-Center Authentic Troop Allocation Slider */
+    #slider-wrap {
+      position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+      width:min(440px, 78vw); height:38px; border:1.5px solid #fff;
+      background:rgba(0,0,0,0.85); display:flex; align-items:stretch; z-index:10;
+    }
+    .sl-cap { width:48px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:800; cursor:pointer; border-right:1px solid #fff; }
+    .sl-cap:last-child { border-right:none; border-left:1px solid #fff; }
+    #sl-track { position:relative; flex:1; cursor:ew-resize; overflow:hidden; }
+    #sl-fill { position:absolute; top:0; left:0; bottom:0; width:25%; background:rgb(95,130,0); border-right:2px solid #fff; }
+    #sl-label { position:relative; z-index:2; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; text-shadow:0 1px 3px #000; }
+
+    /* Game Over Banner */
+    #overlay {
+      display:none; position:fixed; inset:0; background:rgba(4,9,16,0.72); z-index:30;
+      align-items:center; justify-content:center;
+    }
+    #overlay.show { display:flex; }
+    #modal { background:#111c2b; border:2px solid #fff; border-radius:12px; padding:26px 34px; text-align:center; max-width:380px; }
+    #modal h2 { margin:0 0 8px 0; font-size:1.6rem; }
+    #modal p { color:#cbd5e1; margin:0 0 18px 0; font-size:0.92rem; }
+    #hint { position:fixed; bottom:62px; right:12px; background:var(--panel); border:1px solid rgba(255,255,255,0.2); border-radius:6px; padding:6px 10px; font-size:0.74rem; color:#94a3b8; z-index:10; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="arena" width="640" height="640"></canvas>
+  </div>
+
+  <!-- Top-Center Troop Balance Box -->
+  <div id="balance-box">
+    <div class="cyc-bar" id="cyc-l"></div>
+    <span id="bal-num">512</span>
+    <div class="cyc-bar" id="cyc-r"></div>
+  </div>
+
+  <!-- Top-Left Leaderboard -->
+  <div id="leaderboard">
+    <div id="lb-title">LEADERBOARD</div>
+    <div id="lb-body"></div>
+  </div>
+
+  <!-- Top-Right Stats -->
+  <div id="stats-panel">
+    <div class="st-row"><span>Alive</span><span id="st-alive">2</span></div>
+    <div class="st-row"><span>Your Land</span><span id="st-land">0.0%</span></div>
+    <div class="st-row"><span>Interest</span><span id="st-int">7.00%</span></div>
+    <div class="st-row"><span>Time</span><span id="st-time">0:00</span></div>
+  </div>
+
+  <!-- Live Computer-Vision AI Brain Inspector -->
+  <div id="ai-panel">
+    <h3><span>CV-AI BRAIN (LIVE PIXELS)</span><span id="ai-params">1.83M</span></h3>
+    <div class="ai-kv"><span>Model</span><b id="ai-ckpt">champion.pt</b></div>
+    <div class="ai-kv"><span>Action</span><b id="ai-act">WAIT</b></div>
+    <div class="ai-kv"><span>AI Slider</span><b id="ai-sl">25%</b></div>
+    <div class="ai-kv"><span>Critic V(s)</span><b id="ai-val">0.00</b></div>
+    <div class="ai-kv"><span>CV Entities Seen</span><b id="ai-ent">0</b></div>
+    <div id="ai-rat">Observing rendered RGB pixels...</div>
+  </div>
+
+  <!-- Match Controls -->
+  <div id="ctrl-panel">
+    <div class="ctl-row">
+      <select id="sel-mode" style="flex:1;">
+        <option value="1v1" selected>1v1 vs CV-AI</option>
+        <option value="4p">4P: You + CV-AI + 2 Bots</option>
+        <option value="8p">8P: Battle Royale</option>
+      </select>
+      <select id="sel-map" style="flex:1;">
+        <option value="ring" selected>Island Ring</option>
+        <option value="continent">Continent</option>
+        <option value="islands">4 Islands</option>
+        <option value="archipelago">Archipelago</option>
+      </select>
+    </div>
+    <div class="ctl-row">
+      <select id="sel-ai" style="flex:1;">
+        <option value="champion" selected>AI: Trained RL + Planner</option>
+        <option value="pure_rl">AI: 100% Pure Neural Policy</option>
+      </select>
+      <button id="btn-reticle" class="active" title="Show where the CV AI clicked">Vision</button>
+    </div>
+    <div class="ctl-row" style="margin-bottom:0;">
+      <button id="btn-new" class="primary">New Match</button>
+      <button id="btn-boat" title="Toggle Naval Boat launch (B)">Boat (B)</button>
+      <button id="btn-pause">Pause</button>
+      <button id="btn-speed">1x</button>
+    </div>
+  </div>
+
+  <!-- Bottom-Center Authentic Troop Slider -->
+  <div id="slider-wrap">
+    <div class="sl-cap" id="sl-minus">−</div>
+    <div id="sl-track">
+      <div id="sl-fill"></div>
+      <div id="sl-label">128 (25%)</div>
+    </div>
+    <div class="sl-cap" id="sl-plus">+</div>
+  </div>
+
+  <div id="hint">Left-click neutral/enemy to expand or attack • W/S slider • B naval boat • You = Blue, CV-AI = Red</div>
+
+  <!-- Victory / Defeat Modal -->
+  <div id="overlay">
+    <div id="modal">
+      <h2 id="mod-title">Match Finished</h2>
+      <p id="mod-sub"></p>
+      <button id="btn-rematch" class="primary" style="padding:10px 24px;font-size:1rem;">Play Rematch</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('arena');
+    const ctx = canvas.getContext('2d');
+    let state = null;
+    let sliderPct = 0.25;
+    let boatMode = false;
+    let showReticle = true;
+    let draggingSlider = false;
+    let speedIdx = 1;
+    const speeds = [0.5, 1.0, 2.0];
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let ws = null;
+
+    function connect() {
+      ws = new WebSocket(`${proto}//${location.host}/ws/play`);
+      ws.onmessage = (ev) => {
+        state = JSON.parse(ev.data);
+        renderAll();
+      };
+      ws.onclose = () => setTimeout(connect, 1200);
+    }
+    connect();
+
+    function send(obj) {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+    }
+
+    function updateSliderVisual() {
+      const pct = Math.max(0.02, Math.min(0.98, sliderPct));
+      const fill = document.getElementById('sl-fill');
+      fill.style.width = `${(pct * 100).toFixed(1)}%`;
+      let r, g, b;
+      if (pct < 0.333) { r = Math.floor(pct * 3 * 150); g = 145; b = 0; }
+      else if (pct < 0.666) { r = 155; g = Math.floor((1 - (pct - 0.333) * 3) * 145); b = 0; }
+      else { r = 155; g = 0; b = Math.floor((pct - 0.666) * 3 * 155); }
+      fill.style.background = `rgb(${r},${g},${b})`;
+      const troops = state ? Math.floor((state.human?.troops || 0) * pct) : 0;
+      document.getElementById('sl-label').textContent = `${troops.toLocaleString()} (${Math.round(pct * 100)}%)`;
+    }
+
+    // Slider mouse controls
+    const track = document.getElementById('sl-track');
+    function setSliderFromEvent(e) {
+      const rect = track.getBoundingClientRect();
+      sliderPct = Math.max(0.02, Math.min(0.98, (e.clientX - rect.left) / rect.width));
+      updateSliderVisual();
+    }
+    track.addEventListener('mousedown', (e) => { draggingSlider = true; setSliderFromEvent(e); });
+    window.addEventListener('mousemove', (e) => { if (draggingSlider) setSliderFromEvent(e); });
+    window.addEventListener('mouseup', () => { draggingSlider = false; });
+    document.getElementById('sl-minus').onclick = () => { sliderPct = Math.max(0.02, sliderPct - 0.08); updateSliderVisual(); };
+    document.getElementById('sl-plus').onclick = () => { sliderPct = Math.min(0.98, sliderPct + 0.08); updateSliderVisual(); };
+
+    // Canvas click -> send normalized screen click
+    canvas.addEventListener('mousedown', (e) => {
+      if (!state) return;
+      const rect = canvas.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      const ox = rect.left + (rect.width - size) / 2;
+      const oy = rect.top + (rect.height - size) / 2;
+      const xn = (e.clientX - ox) / size;
+      const yn = (e.clientY - oy) / size;
+      if (xn < 0 || xn > 1 || yn < 0 || yn > 1) return;
+      send({ type: 'click', x_norm: xn, y_norm: yn, slider_pct: sliderPct, boat_mode: boatMode });
+      if (boatMode) { boatMode = false; document.getElementById('btn-boat').classList.remove('active'); }
+    });
+
+    // Keyboard shortcuts (W/S slider, B boat, Space pause)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') { sliderPct = Math.min(0.98, sliderPct + 0.08); updateSliderVisual(); }
+      else if (e.code === 'KeyS') { sliderPct = Math.max(0.02, sliderPct - 0.08); updateSliderVisual(); }
+      else if (e.code === 'KeyB') { boatMode = !boatMode; document.getElementById('btn-boat').classList.toggle('active', boatMode); }
+      else if (e.code === 'Space') { send({ type: 'toggle_pause' }); }
+    });
+
+    document.getElementById('btn-new').onclick = () => startNew();
+    document.getElementById('btn-rematch').onclick = () => startNew();
+    function startNew() {
+      document.getElementById('overlay').classList.remove('show');
+      send({
+        type: 'new_match',
+        mode: document.getElementById('sel-mode').value,
+        map_type: document.getElementById('sel-map').value,
+        ai_strength: document.getElementById('sel-ai').value,
+      });
+    }
+    document.getElementById('btn-boat').onclick = () => {
+      boatMode = !boatMode;
+      document.getElementById('btn-boat').classList.toggle('active', boatMode);
+    };
+    document.getElementById('btn-reticle').onclick = () => {
+      showReticle = !showReticle;
+      document.getElementById('btn-reticle').classList.toggle('active', showReticle);
+    };
+    document.getElementById('btn-pause').onclick = () => send({ type: 'toggle_pause' });
+    document.getElementById('btn-speed').onclick = () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      document.getElementById('btn-speed').textContent = `${speeds[speedIdx]}x`;
+      send({ type: 'set_speed', speed: speeds[speedIdx] });
+    };
+
+    function fmtTroops(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+      if (n >= 10000) return (n / 1000).toFixed(1) + 'K';
+      return n.toLocaleString();
+    }
+
+    function renderAll() {
+      if (!state) return;
+      const g = state.grid_size;
+      const cell = canvas.width / g;
+      const owner = state.owner;
+      const colorByPid = {};
+      for (const p of state.players) colorByPid[p.pid] = p.color;
+
+      // Render terrain + territories with crisp darkened inner borders
+      const imgData = ctx.createImageData(g, g);
+      const data = imgData.data;
+      for (let y = 0; y < g; y++) {
+        for (let x = 0; x < g; x++) {
+          const i = y * g + x;
+          const v = owner[i];
+          let r, gr, b;
+          if (v === -2) {
+            // Deep ocean with gentle radial shading
+            r = 20; gr = 78; b = 114;
+          } else if (v === 0) {
+            // Natural green neutral terrain with subtle elevation variation
+            const wave = ((Math.sin(x * 0.35) + Math.cos(y * 0.35)) * 12) | 0;
+            r = 88 + wave; gr = 166 + wave; b = 46 + (wave >> 1);
+          } else {
+            const c = colorByPid[v] || [180, 180, 180];
+            // Check 4-neighbor border -> darken perimeter cleanly like Territorial.io!
+            const isBorder =
+              (x > 0 && owner[i - 1] !== v) ||
+              (x < g - 1 && owner[i + 1] !== v) ||
+              (y > 0 && owner[i - g] !== v) ||
+              (y < g - 1 && owner[i + g] !== v);
+            const mul = isBorder ? 0.62 : 1.0;
+            r = (c[0] * mul) | 0; gr = (c[1] * mul) | 0; b = (c[2] * mul) | 0;
+          }
+          const o = i * 4;
+          data[o] = r; data[o + 1] = gr; data[o + 2] = b; data[o + 3] = 255;
+        }
+      }
+      // Blit sharp offscreen grid onto 640x640 canvas
+      if (!window._off) {
+        window._off = document.createElement('canvas');
+        window._off.width = g; window._off.height = g;
+      }
+      window._off.getContext('2d').putImageData(imgData, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(window._off, 0, 0, canvas.width, canvas.height);
+
+      // Draw Territory Name & Troop Labels
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const p of state.players) {
+        if (p.land_cells < 4) continue;
+        const px = p.cx * canvas.width;
+        const py = p.cy * canvas.height;
+        const luma = 0.299 * p.color[0] + 0.587 * p.color[1] + 0.114 * p.color[2];
+        const fg = luma > 155 ? '#0f172a' : '#ffffff';
+        const sh = luma > 155 ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.8)';
+        const fs = Math.max(11, Math.min(20, Math.sqrt(p.land_cells) * 1.15));
+        ctx.font = `800 ${fs.toFixed(0)}px Inter,sans-serif`;
+        ctx.fillStyle = sh;
+        ctx.fillText(p.name, px + 1, py - fs * 0.45 + 1);
+        ctx.fillStyle = fg;
+        ctx.fillText(p.name, px, py - fs * 0.45);
+        ctx.font = `700 ${(fs * 0.85).toFixed(0)}px Inter,sans-serif`;
+        ctx.fillStyle = sh;
+        ctx.fillText(fmtTroops(p.troops), px + 1, py + fs * 0.55 + 1);
+        ctx.fillStyle = fg;
+        ctx.fillText(fmtTroops(p.troops), px, py + fs * 0.55);
+      }
+
+      // Optional AI Computer-Vision Target Reticle Overlay
+      const ai = state.ai_brain;
+      if (showReticle && ai && ai.action !== 'WAIT') {
+        const ax = ai.x_norm * canvas.width;
+        const ay = ai.y_norm * canvas.height;
+        ctx.strokeStyle = '#fb7185';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(ax, ay, 14, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ax - 20, ay); ctx.lineTo(ax + 20, ay); ctx.moveTo(ax, ay - 20); ctx.lineTo(ax, ay + 20); ctx.stroke();
+      }
+
+      // Update HUD widgets
+      const hu = state.human;
+      const balBox = document.getElementById('balance-box');
+      balBox.classList.toggle('losing', !hu.gaining);
+      balBox.classList.toggle('red-int', hu.red_interest);
+      document.getElementById('bal-num').textContent = fmtTroops(hu.troops);
+      const barH = `${Math.round((1 - state.cycle_progress) * 100)}%`;
+      document.getElementById('cyc-l').style.height = barH;
+      document.getElementById('cyc-r').style.height = barH;
+
+      document.getElementById('st-alive').textContent = state.players.length;
+      document.getElementById('st-land').textContent = `${hu.land_pct.toFixed(1)}%`;
+      const stInt = document.getElementById('st-int');
+      stInt.textContent = `${hu.interest_pct.toFixed(2)}%`;
+      stInt.classList.toggle('red-txt', hu.red_interest);
+      const mm = Math.floor(state.elapsed_sec / 60);
+      const ss = String(state.elapsed_sec % 60).padStart(2, '0');
+      document.getElementById('st-time').textContent = `${mm}:${ss}`;
+
+      document.getElementById('lb-body').innerHTML = state.players.slice(0, 8).map((p, i) => `
+        <div class="lb-row ${p.is_human ? 'me' : (p.is_ai ? 'ai' : '')}">
+          <span>${i + 1}. <span class="swatch" style="background:rgb(${p.color.join(',')})"></span>${p.name}</span>
+          <span>${p.land_pct.toFixed(1)}%</span>
+        </div>
+      `).join('');
+
+      document.getElementById('ai-ckpt').textContent = (ai.checkpoint_id || 'champion.pt').slice(0, 20);
+      document.getElementById('ai-act').textContent = ai.action || 'WAIT';
+      document.getElementById('ai-sl').textContent = `${Math.round((ai.slider_pct || 0.25) * 100)}%`;
+      document.getElementById('ai-val').textContent = Number(ai.value_est || 0).toFixed(2);
+      document.getElementById('ai-ent').textContent = ai.entities_seen ?? 0;
+      document.getElementById('ai-rat').textContent = ai.rationale || 'observing pixels...';
+      document.getElementById('btn-pause').textContent = state.paused ? 'Resume' : 'Pause';
+
+      updateSliderVisual();
+
+      if (state.game_over) {
+        const won = state.winner === 'YOU';
+        document.getElementById('mod-title').textContent = won ? '🏆 VICTORY!' : '💀 DEFEAT';
+        document.getElementById('mod-sub').textContent = won
+          ? `You conquered the Trained CV-AI (${ai.checkpoint_id}) in ${mm}:${ss}!`
+          : `${state.winner} won the match in ${mm}:${ss}. Try adjusting your cycle timing & 2:1 defense!`;
+        document.getElementById('overlay').classList.add('show');
+      }
+    }
+    updateSliderVisual();
+  </script>
+</body>
+</html>
