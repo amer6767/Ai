@@ -89,3 +89,24 @@ def test_dashboard_api_health_and_status() -> None:
     assert r.status_code == 200
     body = r.json()
     assert "hardware" in body and "curriculum" in body
+
+
+def test_subproc_vectorized_pixel_env_parallel_rollout() -> None:
+    from training.vec_env import SubprocVectorizedPixelEnv
+
+    scenarios = [SimScenarioConfig(num_bots=3, max_steps=20, map_type="continent") for _ in range(2)]
+    env = SubprocVectorizedPixelEnv(scenarios, base_seed=77, use_fast_perception=True)
+    try:
+        obs = env.reset()
+        assert obs.obs_map.shape == (2, 11, 128, 128)
+        obs2, rews, dones, infos = env.step(
+            np.array([1, 0]),
+            np.array([0.5, 0.5]),
+            np.array([0.5, 0.5]),
+            np.array([0.25, 0.25]),
+        )
+        assert obs2.obs_map.shape == (2, 11, 128, 128)
+        assert rews.shape == (2,)
+        assert len(infos) == 2
+    finally:
+        env.close()

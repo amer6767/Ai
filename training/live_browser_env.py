@@ -103,13 +103,12 @@ class LiveX11BrowserEnv:
                     self.controller.click(px, py)
                 time.sleep(1.5)
             elif pf.screen_state == ScreenState.SPAWN_SELECTION:
-                if not spawn_clicked:
-                    sx, sy = self.feature_extractor.select_best_spawn_point(pf)
-                    px, py = self.controller.norm_to_screen(sx, sy, raw.window_bbox)
-                    self.controller.click(px, py)
-                    time.sleep(0.35)
-                    self.controller.click(px, py)
-                    spawn_clicked = True
+                sx, sy = self.feature_extractor.select_best_spawn_point(pf)
+                px, py = self.controller.norm_to_screen(sx, sy, raw.window_bbox)
+                self.controller.click(px, py)
+                time.sleep(0.35)
+                self.controller.click(px, py)
+                spawn_clicked = True
                 time.sleep(0.8)
             elif pf.screen_state in (ScreenState.SPECTATING, ScreenState.DEFEAT, ScreenState.VICTORY):
                 # Click bottom-left exit icon then Escape to return cleanly to menu

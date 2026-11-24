@@ -102,7 +102,8 @@ class StrategicBrain:
             )
 
         if pf.screen_state == ScreenState.SPAWN_SELECTION:
-            # Territorial.io Custom Scenario: 1st click places capital preview, 2nd click confirms & starts match!
+            # 1st click on neutral land opens the green Capitol confirmation icon centered at (sx, sy);
+            # 2nd click directly on exact (sx, sy) confirms spawn and starts the match immediately!
             if self._spawn_clicked_at_step is None:
                 sx, sy = self.feature_extractor.select_best_spawn_point(pf)
                 self._spawn_pos = (sx, sy)
@@ -111,17 +112,18 @@ class StrategicBrain:
                     action_type=ActionType.UI_CLICK,
                     target_x_norm=sx,
                     target_y_norm=sy,
-                    rationale="place_optimal_land_spawn_from_heatmap",
+                    rationale="open_spawn_capitol_icon_at_optimal_land",
                 )
-            if self._nav_step - self._spawn_clicked_at_step == 1:
+            elapsed_nav = self._nav_step - self._spawn_clicked_at_step
+            if elapsed_nav in (1, 3):
                 sx, sy = getattr(self, "_spawn_pos", (0.5, 0.5))
                 return ActionDecision(
                     action_type=ActionType.UI_CLICK,
                     target_x_norm=sx,
                     target_y_norm=sy,
-                    rationale="confirm_spawn_to_launch_match",
+                    rationale="click_capitol_icon_to_confirm_spawn",
                 )
-            if self._nav_step - self._spawn_clicked_at_step > 12:
+            if elapsed_nav > 6:
                 self._spawn_clicked_at_step = None
             return ActionDecision(
                 action_type=ActionType.WAIT,
